@@ -3,22 +3,25 @@ package com.felpster.loginapp.presentation.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.felpster.loginapp.domain.LoginRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 sealed class LoginViewState {
 
     data object Success : LoginViewState()
-    data object Loading : LoginViewState()
-    data class Error(val message: String) : LoginViewState()
+    data class Loading(val message: String?) : LoginViewState()
+    data class Error(val message: String? = null) : LoginViewState()
 }
 
 sealed class LoginViewEvent {
-    data class onLoginClick(val username: String, val password: String) : LoginViewEvent()
+    data class OnLoginClick(val username: String, val password: String) : LoginViewEvent()
 }
 
-class LoginViewModel(
+@HiltViewModel
+class LoginViewModel @Inject constructor(
     private val loginRepository: LoginRepository,
 ) : ViewModel() {
 
@@ -26,12 +29,15 @@ class LoginViewModel(
 
     fun onEvent(event: LoginViewEvent) {
         when (event) {
-            is LoginViewEvent.onLoginClick -> doLogin(event)
+            is LoginViewEvent.OnLoginClick -> doLogin(event)
         }
     }
 
-    private fun doLogin(event: LoginViewEvent.onLoginClick) {
+    private fun doLogin(event: LoginViewEvent.OnLoginClick) {
         viewModelScope.launch {
+            state.value = LoginViewState.Loading("Authenticating...")
+            delay(3000)
+
             loginRepository
                 .authenticate(
                     username = event.username,
@@ -41,7 +47,7 @@ class LoginViewModel(
                     state.value = LoginViewState.Success
                 }
                 .onFailure {
-                    state.value = LoginViewState.Error(it.message ?: "Ops, something went wrong!!!")
+                    state.value = LoginViewState.Error(it.message)
                 }
         }
     }
